@@ -44,6 +44,7 @@ dependencies {
 
     api(libs.androidx.exifinterface)
     api(libs.androidx.documentfile)
+    implementation(libs.appCompat)
 
     api(libs.toolbox.logger)
 

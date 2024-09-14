@@ -18,24 +18,48 @@
 package ru.tech.imageresizershrinker.app.presentation
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.viewModels
 import dagger.hilt.android.AndroidEntryPoint
 import dev.olshevski.navigation.reimagined.navigate
 import ru.tech.imageresizershrinker.core.crash.components.GlobalExceptionHandler
 import ru.tech.imageresizershrinker.core.crash.components.M3Activity
+import ru.tech.imageresizershrinker.core.domain.launcher.CreateDocumentLauncher
+import ru.tech.imageresizershrinker.core.domain.saving.FileControllerLauncherBinder
 import ru.tech.imageresizershrinker.core.ui.utils.helper.ContextUtils.parseImageFromIntent
 import ru.tech.imageresizershrinker.core.ui.utils.provider.setContentWithWindowSizeClass
 import ru.tech.imageresizershrinker.feature.root.presentation.RootContent
 import ru.tech.imageresizershrinker.feature.root.presentation.viewModel.RootViewModel
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class AppActivity : M3Activity() {
 
     private val viewModel by viewModels<RootViewModel>()
 
+    @Inject
+    lateinit var fileControllerBinder: FileControllerLauncherBinder<String, Uri?>
+
+    @Inject
+    lateinit var createDocumentLauncher: CreateDocumentLauncher<String, Uri?>
+
+    override fun onResume() {
+        super.onResume()
+        fileControllerBinder.bindLauncher(createDocumentLauncher)
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        fileControllerBinder.unbindLauncher()
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        if (savedInstanceState == null) {
+            fileControllerBinder.bindLauncher(createDocumentLauncher)
+        }
 
         parseImage(intent)
 

@@ -17,13 +17,16 @@
 
 package ru.tech.imageresizershrinker.core.data.di
 
+import android.net.Uri
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import ru.tech.imageresizershrinker.core.data.saving.AndroidFileController
+import ru.tech.imageresizershrinker.core.data.saving.AndroidFileControllerCreateLauncherBinder
 import ru.tech.imageresizershrinker.core.domain.saving.FileController
+import ru.tech.imageresizershrinker.core.domain.saving.FileControllerLauncherBinder
 import ru.tech.imageresizershrinker.core.domain.saving.ImageFilenameProvider
 import javax.inject.Singleton
 
@@ -36,6 +39,12 @@ internal interface SavingModule {
     fun provideFileController(
         controller: AndroidFileController
     ): FileController
+
+    @Singleton
+    @Binds
+    fun provideFileControllerBinder(
+        controller: AndroidFileControllerCreateLauncherBinder
+    ): FileControllerLauncherBinder<String, Uri?>
 
     companion object {
 

@@ -40,14 +40,17 @@ import com.t8rin.logger.makeLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okio.use
+import ru.tech.imageresizershrinker.core.data.utils.weak
 import ru.tech.imageresizershrinker.core.domain.dispatchers.DispatchersHolder
 import ru.tech.imageresizershrinker.core.domain.image.ShareProvider
 import ru.tech.imageresizershrinker.core.domain.image.model.MetadataTag
+import ru.tech.imageresizershrinker.core.domain.launcher.CreateDocumentLauncher
 import ru.tech.imageresizershrinker.core.domain.saving.FileController
 import ru.tech.imageresizershrinker.core.domain.saving.RandomStringGenerator
 import ru.tech.imageresizershrinker.core.domain.saving.Writeable
@@ -155,13 +158,15 @@ internal class AndroidFileController @Inject constructor(
         keepOriginalMetadata: Boolean,
         oneTimeSaveLocationUri: String?
     ): SaveResult = withContext(ioDispatcher) {
+        val isNeedToPickFilename = true
+
         if (!context.isExternalStorageWritable()) {
             return@withContext SaveResult.Error.MissingPermissions
         }
 
-        val savingPath = oneTimeSaveLocationUri?.getPath() ?: defaultSavingPath
-
         runCatching {
+            val savingPath = oneTimeSaveLocationUri?.getPath() ?: defaultSavingPath
+
             if (settingsState.copyToClipboardMode is CopyToClipboardMode.Enabled) {
                 val clipboardManager = context.getSystemService<ClipboardManager>()
 
@@ -227,36 +232,6 @@ internal class AndroidFileController @Inject constructor(
                     )
                 }
             } else {
-                (oneTimeSaveLocationUri ?: settingsState.saveFolderUri).takeIf {
-                    !it.isNullOrEmpty()
-                }?.let { treeUri ->
-                    val hasDir: Boolean = runCatching {
-                        treeUri.toUri().let {
-                            DocumentFile.fromTreeUri(context, it)
-                        }?.exists()
-                    }.getOrNull() == true
-
-                    if (!hasDir) {
-                        if (oneTimeSaveLocationUri == null) {
-                            settingsManager.setSaveFolderUri(null)
-                        } else {
-                            settingsManager.setOneTimeSaveLocations(
-                                settingsState.oneTimeSaveLocations.let { locations ->
-                                    (locations - locations.find { it.uri == oneTimeSaveLocationUri }).filterNotNull()
-                                }
-                            )
-                        }
-                        return@withContext SaveResult.Error.Exception(
-                            Exception(
-                                context.getString(
-                                    R.string.no_such_directory,
-                                    treeUri.toUri().toUiPath(context, treeUri)
-                                )
-                            )
-                        )
-                    }
-                }
-
                 var initialExif: ExifInterface? = null
 
                 val newSaveTarget = if (saveTarget is ImageSaveTarget<*>) {
@@ -270,12 +245,73 @@ internal class AndroidFileController @Inject constructor(
                     )
                 } else saveTarget
 
-                val savingFolder = context.getSavingFolder(
-                    treeUri = (oneTimeSaveLocationUri ?: settingsState.saveFolderUri)?.takeIf {
-                        it.isNotEmpty()
-                    }?.toUri(),
-                    saveTarget = newSaveTarget
-                )
+                val filename = newSaveTarget.filename ?: ""
+
+                var customFile: Uri? = null
+
+                val launcher = createDocumentLauncher
+                if (isNeedToPickFilename && launcher != null) {
+                    var notPicked = false
+                    with(launcher) {
+                        launch(filename)
+                        getResult().collectLatest {
+                            if (it == null) {
+                                notPicked = true
+                                return@collectLatest
+                            }
+                            customFile = it
+                        }
+                    }
+                    if (notPicked) {
+                        return@withContext SaveResult.Error.Exception(IllegalArgumentException("No filename is picked"))
+                    }
+                }
+
+                val savingFolder = if (customFile == null) {
+                    (oneTimeSaveLocationUri ?: settingsState.saveFolderUri).takeIf {
+                        !it.isNullOrEmpty()
+                    }?.let { treeUri ->
+                        val hasDir: Boolean = runCatching {
+                            treeUri.toUri().let {
+                                DocumentFile.fromTreeUri(context, it)
+                            }?.exists()
+                        }.getOrNull() == true
+
+                        if (!hasDir) {
+                            if (oneTimeSaveLocationUri == null) {
+                                settingsManager.setSaveFolderUri(null)
+                            } else {
+                                settingsManager.setOneTimeSaveLocations(
+                                    settingsState.oneTimeSaveLocations.let { locations ->
+                                        (locations - locations.find { it.uri == oneTimeSaveLocationUri }).filterNotNull()
+                                    }
+                                )
+                            }
+                            return@withContext SaveResult.Error.Exception(
+                                Exception(
+                                    context.getString(
+                                        R.string.no_such_directory,
+                                        treeUri.toUri().toUiPath(context, treeUri)
+                                    )
+                                )
+                            )
+                        }
+                    }
+                    context.getSavingFolder(
+                        treeUri = (oneTimeSaveLocationUri ?: settingsState.saveFolderUri)?.takeIf {
+                            it.isNotEmpty()
+                        }?.toUri(),
+                        saveTarget = newSaveTarget
+                    )
+                } else {
+                    SavingFolder(
+                        outputStream = context.openWriteableStream(
+                            uri = customFile,
+                            onError = { throw it }
+                        ),
+                        fileUri = customFile
+                    )
+                }
 
                 savingFolder.outputStream?.use {
                     it.write(saveTarget.data)
@@ -289,8 +325,6 @@ internal class AndroidFileController @Inject constructor(
                         originalUri = saveTarget.originalUri.toUri()
                     )
                 }
-
-                val filename = newSaveTarget.filename ?: ""
 
                 oneTimeSaveLocationUri?.let {
                     val currentLocation =
@@ -318,10 +352,11 @@ internal class AndroidFileController @Inject constructor(
                     )
                 }
 
-
                 return@withContext SaveResult.Success(
                     message = if (savingPath.isNotEmpty()) {
-                        if (filename.isNotEmpty()) {
+                        if (customFile != null) {
+                            context.getString(R.string.saved_to_without_filename, "")
+                        } else if (filename.isNotEmpty()) {
                             context.getString(
                                 R.string.saved_to,
                                 savingPath,
@@ -387,7 +422,6 @@ internal class AndroidFileController @Inject constructor(
 
     private data class SavingFolder(
         val outputStream: OutputStream? = null,
-        val file: File? = null,
         val fileUri: Uri? = null
     )
 
@@ -665,5 +699,17 @@ internal class AndroidFileController @Inject constructor(
     }
 
     private fun Uri.getFilename(): String? = DocumentFile.fromSingleUri(context, this)?.name
+
+    companion object {
+        private var createDocumentLauncher by weak<CreateDocumentLauncher<String, Uri?>?>(null)
+
+        fun bindCreateDocumentLauncher(launcher: CreateDocumentLauncher<String, Uri?>) {
+            createDocumentLauncher = launcher
+        }
+
+        fun unbindCreateDocumentLauncher() {
+            createDocumentLauncher = null
+        }
+    }
 
 }
