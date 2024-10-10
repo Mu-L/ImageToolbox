@@ -147,7 +147,8 @@ import ru.tech.imageresizershrinker.core.ui.widget.buttons.PanModeButton
 import ru.tech.imageresizershrinker.core.ui.widget.buttons.ShareButton
 import ru.tech.imageresizershrinker.core.ui.widget.controls.SaveExifWidget
 import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.AlphaSelector
-import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.BackgroundColorSelector
+import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.ColorRowSelector
+import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.HelperGridParamsSelector
 import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.ImageFormatSelector
 import ru.tech.imageresizershrinker.core.ui.widget.dialogs.ExitWithoutSavingDialog
 import ru.tech.imageresizershrinker.core.ui.widget.dialogs.OneTimeSaveLocationSelectionDialog
@@ -388,7 +389,7 @@ fun DrawContent(
                 )
             }
             if (viewModel.drawBehavior is DrawBehavior.Background) {
-                BackgroundColorSelector(
+                ColorRowSelector(
                     value = viewModel.backgroundColor,
                     onValueChange = viewModel::updateBackgroundColor,
                     modifier = Modifier
@@ -472,6 +473,11 @@ fun DrawContent(
                 modifier = Modifier.padding(horizontal = 16.dp),
                 value = drawLineStyle,
                 onValueChange = viewModel::updateDrawLineStyle
+            )
+            HelperGridParamsSelector(
+                value = viewModel.helperGridParams,
+                onValueChange = viewModel::updateHelperGridParams,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
             val settingsInteractor = LocalSimpleSettingsInteractor.current
             PreferenceRowSwitch(
@@ -723,7 +729,8 @@ fun DrawContent(
                 onRequestFiltering = viewModel::filter,
                 drawPathMode = drawPathMode,
                 backgroundColor = viewModel.backgroundColor,
-                drawLineStyle = drawLineStyle
+                drawLineStyle = drawLineStyle,
+                helperGridParams = viewModel.helperGridParams
             )
         }
     }
@@ -917,7 +924,7 @@ fun DrawContent(
                                             ),
                                     )
                                 }
-                                BackgroundColorSelector(
+                                ColorRowSelector(
                                     value = sheetBackgroundColor,
                                     onValueChange = { sheetBackgroundColor = it },
                                     modifier = Modifier

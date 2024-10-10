@@ -31,17 +31,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import ru.tech.imageresizershrinker.core.resources.R
 import ru.tech.imageresizershrinker.core.ui.widget.color_picker.ColorSelectionRow
 import ru.tech.imageresizershrinker.core.ui.widget.color_picker.ColorSelectionRowDefaults
 
 @Composable
-fun BackgroundColorSelector(
+fun ColorRowSelector(
     value: Color,
     onValueChange: (Color) -> Unit,
     modifier: Modifier = Modifier,
-    title: String = stringResource(R.string.background_color)
+    title: String = stringResource(R.string.background_color),
+    allowAlpha: Boolean = true,
+    defaultColors: List<Color> = defaultColorList,
 ) {
     Column(modifier = modifier) {
         Row(
@@ -52,14 +53,13 @@ fun BackgroundColorSelector(
             Text(
                 fontWeight = FontWeight.Medium,
                 text = title,
-                modifier = Modifier.padding(top = 16.dp),
-                fontSize = 18.sp
+                modifier = Modifier.padding(top = 8.dp)
             )
         }
         ColorSelectionRow(
-            defaultColors = defaultColorList,
-            allowAlpha = true,
-            contentPadding = PaddingValues(16.dp),
+            defaultColors = defaultColors,
+            allowAlpha = allowAlpha,
+            contentPadding = PaddingValues(horizontal = 12.dp),
             value = value,
             onValueChange = onValueChange
         )

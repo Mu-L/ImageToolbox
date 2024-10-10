@@ -63,7 +63,7 @@ import ru.tech.imageresizershrinker.core.ui.widget.buttons.ShareButton
 import ru.tech.imageresizershrinker.core.ui.widget.buttons.ZoomButton
 import ru.tech.imageresizershrinker.core.ui.widget.controls.ImageReorderCarousel
 import ru.tech.imageresizershrinker.core.ui.widget.controls.ScaleSmallImagesToLargeToggle
-import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.BackgroundColorSelector
+import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.ColorRowSelector
 import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.ImageFormatSelector
 import ru.tech.imageresizershrinker.core.ui.widget.controls.selection.QualitySelector
 import ru.tech.imageresizershrinker.core.ui.widget.dialogs.ExitWithoutSavingDialog
@@ -91,7 +91,7 @@ fun ImageStitchingContent(
     uriState: List<Uri>?,
     onGoBack: () -> Unit,
     onNavigate: (Screen) -> Unit,
-    viewModel: ImageStitchingViewModel = hiltViewModel()
+    viewModel: ImageStitchingViewModel = hiltViewModel(),
 ) {
     val settingsState = LocalSettingsState.current
 
@@ -299,7 +299,7 @@ fun ImageStitchingContent(
                         onValueChange = viewModel::setStitchAlignment
                     )
                 }
-                BackgroundColorSelector(
+                ColorRowSelector(
                     value = Color(viewModel.combiningParams.backgroundColor),
                     onValueChange = {
                         viewModel.updateBackgroundSelector(it.toArgb())
